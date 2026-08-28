@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function WardrobeScreen() {
+export default function CalendarScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Mon Armoire</Text>
+      <Text style={styles.title}>Mon Calendrier</Text>
     </View>
   );
 }
