@@ -4,6 +4,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Dimensions, FlatList, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+// NOUVEAU : Importation du store global
+import { useStore } from '../store';
+
 const numColumns = 2;
 const screenWidth = Dimensions.get('window').width;
 const itemWidth = (screenWidth - 45) / numColumns;
@@ -11,19 +14,19 @@ const itemWidth = (screenWidth - 45) / numColumns;
 const CATEGORIES = ['Hauts', 'Bas', 'Chaussures', 'Accessoires'];
 
 export default function WardrobeScreen() {
-  const [clothes, setClothes] = useState([]);
+  // Connexion au store global (on n'utilise plus de useState local pour clothes)
+  const clothes = useStore((state) => state.clothes);
+  const addClothing = useStore((state) => state.addClothing);
+
   const [activeFilter, setActiveFilter] = useState('Tous');
   
-  // États pour les modales
-  const [isSourceMenuVisible, setSourceMenuVisible] = useState(false); // Le nouveau menu Photo/Galerie
+  const [isSourceMenuVisible, setSourceMenuVisible] = useState(false);
   const [isModalVisible, setModalVisible] = useState(false);
   const [tempImage, setTempImage] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
 
-  // NOUVEAU : Fonction pour l'appareil photo
   const takePhoto = async () => {
-    setSourceMenuVisible(false); // On ferme le menu
-
+    setSourceMenuVisible(false);
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (permissionResult.granted === false) {
       alert("L'accès à l'appareil photo est nécessaire !");
@@ -42,10 +45,8 @@ export default function WardrobeScreen() {
     }
   };
 
-  // Fonction existante pour la galerie
   const pickImage = async () => {
-    setSourceMenuVisible(false); // On ferme le menu
-
+    setSourceMenuVisible(false);
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
       alert("L'accès à la galerie est nécessaire !");
@@ -67,7 +68,9 @@ export default function WardrobeScreen() {
 
   const saveClothingItem = () => {
     const newItem = { id: Date.now().toString(), uri: tempImage, category: selectedCategory };
-    setClothes([newItem, ...clothes]);
+    
+    // On sauvegarde dans Zustand !
+    addClothing(newItem);
     
     setModalVisible(false);
     setTempImage(null);
@@ -91,11 +94,7 @@ export default function WardrobeScreen() {
       <View style={styles.filterContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {['Tous', ...CATEGORIES].map((cat) => (
-            <TouchableOpacity 
-              key={cat} 
-              style={[styles.filterChip, activeFilter === cat && styles.filterChipActive]}
-              onPress={() => setActiveFilter(cat)}
-            >
+            <TouchableOpacity key={cat} style={[styles.filterChip, activeFilter === cat && styles.filterChipActive]} onPress={() => setActiveFilter(cat)}>
               <Text style={[styles.filterText, activeFilter === cat && styles.filterTextActive]}>{cat}</Text>
             </TouchableOpacity>
           ))}
@@ -103,67 +102,50 @@ export default function WardrobeScreen() {
       </View>
 
       {filteredClothes.length > 0 ? (
-        <FlatList
-          data={filteredClothes}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          numColumns={numColumns}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
+        <FlatList data={filteredClothes} keyExtractor={(item) => item.id} renderItem={renderItem} numColumns={numColumns} contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false} />
       ) : (
         <Text style={styles.emptyText}>Aucun vêtement dans cette catégorie.</Text>
       )}
 
-      {/* Bouton qui ouvre maintenant le menu de choix */}
       <TouchableOpacity style={styles.fab} onPress={() => setSourceMenuVisible(true)} activeOpacity={0.8}>
         <Ionicons name="add" size={32} color="white" />
       </TouchableOpacity>
 
-      {/* NOUVEAU : Modale pour choisir entre Appareil Photo et Galerie */}
       <Modal visible={isSourceMenuVisible} animationType="fade" transparent={true}>
-        {/* TouchableOpacity en fond pour fermer le menu si on clique à côté */}
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setSourceMenuVisible(false)}>
           <View style={styles.sourceMenuContent}>
-            
             <TouchableOpacity style={styles.sourceBtn} onPress={takePhoto}>
               <Ionicons name="camera" size={24} color="white" />
               <Text style={styles.sourceBtnText}>Prendre une photo</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.sourceBtnOutline} onPress={pickImage}>
               <Ionicons name="images" size={24} color="black" />
               <Text style={styles.sourceBtnTextDark}>Choisir dans la galerie</Text>
             </TouchableOpacity>
-
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* Modale de catégorisation (Inchangée) */}
       <Modal visible={isModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Catégoriser</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity onPress={() => { setModalVisible(false); setTempImage(null); }}>
                 <Ionicons name="close-circle" size={28} color="#A0A0A0" />
               </TouchableOpacity>
             </View>
-            {tempImage && (
-              <Image source={{ uri: tempImage }} style={styles.modalImage} contentFit="cover" />
-            )}
+
+            {tempImage && <Image source={{ uri: tempImage }} style={styles.modalImage} contentFit="cover" />}
+
             <View style={styles.categoryContainer}>
               {CATEGORIES.map((cat) => (
-                <TouchableOpacity 
-                  key={cat} 
-                  style={[styles.categoryBtn, selectedCategory === cat && styles.categoryBtnActive]}
-                  onPress={() => setSelectedCategory(cat)}
-                >
+                <TouchableOpacity key={cat} style={[styles.categoryBtn, selectedCategory === cat && styles.categoryBtnActive]} onPress={() => setSelectedCategory(cat)}>
                   <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>{cat}</Text>
                 </TouchableOpacity>
               ))}
             </View>
+            
             <TouchableOpacity style={styles.saveBtn} onPress={saveClothingItem}>
               <Text style={styles.saveBtnText}>Ajouter à l'armoire</Text>
             </TouchableOpacity>
@@ -189,21 +171,16 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: 'bold', color: '#333' },
   emptyText: { flex: 1, textAlign: 'center', textAlignVertical: 'center', fontSize: 16, color: '#A0A0A0', fontStyle: 'italic', marginTop: '50%' },
   fab: { position: 'absolute', bottom: 30, right: 30, backgroundColor: '#000000', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 8 },
-  
-  // Styles des modales
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, paddingBottom: 50, shadowColor: "#000", shadowOffset: { width: 0, height: -5 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 20 },
-  
-  // NOUVEAU : Styles du menu de sélection (Photo / Galerie)
   sourceMenuContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, paddingBottom: 50 },
   sourceBtn: { flexDirection: 'row', backgroundColor: '#000', paddingVertical: 15, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   sourceBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
   sourceBtnOutline: { flexDirection: 'row', backgroundColor: '#FFF', paddingVertical: 15, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#000' },
   sourceBtnTextDark: { color: '#000', fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
-
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
-  modalImage: { width: 150, height: 150 * 1.25, borderRadius: 15, alignSelf: 'center', marginBottom: 20 },
+  modalImage: { width: 150, height: 150 * 1.25, borderRadius: 15, alignSelf: 'center', marginBottom: 20, backgroundColor: '#F0F0F0' },
   categoryContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginBottom: 30 },
   categoryBtn: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#E0E0E0' },
   categoryBtnActive: { backgroundColor: '#000', borderColor: '#000' },
