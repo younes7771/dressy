@@ -75,4 +75,5 @@ const styles = StyleSheet.create({
   washBtnText: { color: '#FFF', fontWeight: 'bold', marginLeft: 5, fontSize: 12 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { fontSize: 16, color: '#A0A0A0', marginTop: 15, fontStyle: 'italic' }
+  
 });

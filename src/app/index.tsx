@@ -17,6 +17,7 @@ export default function WardrobeScreen() {
   // Connexion au store global (on n'utilise plus de useState local pour clothes)
   const clothes = useStore((state) => state.clothes);
   const addClothing = useStore((state) => state.addClothing);
+  const markAsDirty = useStore((state) => state.markAsDirty);
 
   const [activeFilter, setActiveFilter] = useState('Tous');
   
@@ -77,7 +78,9 @@ export default function WardrobeScreen() {
     setSelectedCategory(CATEGORIES[0]);
   };
 
-  const filteredClothes = activeFilter === 'Tous' ? clothes : clothes.filter(item => item.category === activeFilter);
+  const filteredClothes = clothes.filter(item => 
+  !item.isDirty && (activeFilter === 'Tous' || item.category === activeFilter)
+);
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
@@ -85,6 +88,11 @@ export default function WardrobeScreen() {
       <View style={styles.badge}>
         <Text style={styles.badgeText}>{item.category}</Text>
       </View>
+      {/* NOUVEAU BOUTON : Envoyer au linge sale */}
+    <TouchableOpacity 
+      style={styles.dirtyBtn} 
+      onPress={() => markAsDirty(item.id)}
+    ><Ionicons name="basket-outline" size={18} color="#FFF" /></TouchableOpacity>
     </View>
   );
 
@@ -187,5 +195,7 @@ const styles = StyleSheet.create({
   categoryText: { color: '#333', fontWeight: '500' },
   categoryTextActive: { color: '#FFF' },
   saveBtn: { backgroundColor: '#000', paddingVertical: 15, borderRadius: 15, alignItems: 'center' },
-  saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+  saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  dirtyBtn: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 6, borderRadius: 15 },
+  
 });
