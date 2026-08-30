@@ -1,5 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useTranslation as useI18nTranslation } from 'react-i18next';
+import { useWindowDimensions } from 'react-native';
+import '../i18n';
 
 const COLORS = {
   walnutDark: '#2A160D',
@@ -8,6 +11,11 @@ const COLORS = {
 };
 
 export default function TabLayout() {
+  const { t } = useI18nTranslation();
+  const { width, height } = useWindowDimensions();
+  const isTablet = width >= 768;
+  const isSmallDevice = width < 375;
+
   return (
     <Tabs
       screenOptions={{
@@ -18,9 +26,9 @@ export default function TabLayout() {
           backgroundColor: COLORS.walnutDark,
           borderTopWidth: 2,
           borderTopColor: COLORS.brassDark,
-          height: 75,
-          paddingBottom: 12,
-          paddingTop: 12,
+          height: isTablet ? 85 : isSmallDevice ? 65 : 75,
+          paddingBottom: isTablet ? 15 : isSmallDevice ? 8 : 12,
+          paddingTop: isTablet ? 15 : isSmallDevice ? 8 : 12,
           elevation: 24,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -5 },
@@ -29,36 +37,51 @@ export default function TabLayout() {
         },
         tabBarLabelStyle: {
           fontWeight: '700',
-          fontSize: 11,
-          letterSpacing: 1.5,
+          fontSize: isTablet ? 14 : isSmallDevice ? 9 : 11,
+          letterSpacing: isTablet ? 2 : isSmallDevice ? 1 : 1.5,
           marginTop: 4,
+        },
+        tabBarIconStyle: {
+          marginBottom: isSmallDevice ? -3 : 0,
         }
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'ARMOIRE',
+          title: t('wardrobe'),
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'shirt' : 'shirt-outline'} size={26} color={color} />
+            <Ionicons 
+              name={focused ? 'shirt' : 'shirt-outline'} 
+              size={isTablet ? 32 : isSmallDevice ? 22 : 26} 
+              color={color} 
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
-          title: 'AGENDA',
+          title: t('calendar'),
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={26} color={color} />
+            <Ionicons 
+              name={focused ? 'calendar' : 'calendar-outline'} 
+              size={isTablet ? 32 : isSmallDevice ? 22 : 26} 
+              color={color} 
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="laundry"
         options={{
-          title: 'PANIER',
+          title: t('laundry'),
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'basket' : 'basket-outline'} size={26} color={color} />
+            <Ionicons 
+              name={focused ? 'basket' : 'basket-outline'} 
+              size={isTablet ? 32 : isSmallDevice ? 22 : 26} 
+              color={color} 
+            />
           ),
         }}
       />

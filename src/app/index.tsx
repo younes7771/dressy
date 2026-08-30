@@ -3,9 +3,12 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { responsive } from '../responsive';
 import { useStore } from '../store';
+
 
 const COLORS = {
   walnutDark: '#2A160D',
@@ -40,10 +43,11 @@ function WardrobeBackdrop() {
 }
 
 export default function WardrobeScreen() {
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const numColumns = 2;
-  const itemWidth = (screenWidth - 45) / numColumns;
+    const numColumns = responsive.isTablet ? 3 : responsive.isLargeTablet ? 4 : 2;
+    const itemWidth = responsive.getItemWidth(numColumns);
 
   const clothes = useStore((state) => state.clothes);
   const categories = useStore((state) => state.categories);
@@ -62,10 +66,14 @@ export default function WardrobeScreen() {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  // États pour le CRUD (Mise à jour / Suppression)
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [itemToEdit, setItemToEdit] = useState(null);
   const [editCategory, setEditCategory] = useState('');
+
+  const toggleLanguage = () => {
+    const nextLang = i18n.language === 'fr' ? 'en' : 'fr';
+    i18n.changeLanguage(nextLang);
+  };
 
   const takePhoto = async () => {
     setSourceMenuVisible(false);
@@ -119,12 +127,12 @@ export default function WardrobeScreen() {
 
   const handleDeleteClothing = () => {
     Alert.alert(
-      "Jeter ce vêtement ?",
-      "Il sera retiré de votre armoire et de votre agenda.",
+      t('deleteAlertTitle'),
+      t('deleteAlertSub'),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: t('cancel'), style: "cancel" },
         { 
-          text: "Supprimer", 
+          text: t('delete'), 
           style: "destructive",
           onPress: () => {
             deleteClothing(itemToEdit.id);
@@ -136,7 +144,7 @@ export default function WardrobeScreen() {
     );
   };
 
-  const filteredClothes = clothes.filter(item => !item.isDirty && (activeFilter === 'Tous' || item.category === activeFilter));
+  const filteredClothes = clothes.filter(item => !item.isDirty && (activeFilter === 'Tous' || activeFilter === t('all') || item.category === activeFilter));
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
@@ -154,7 +162,18 @@ export default function WardrobeScreen() {
           <View style={styles.hookCircle} />
         </View>
         <View style={styles.shelfItemFrame}>
-          <Image source={{ uri: item.uri }} style={[styles.clothingImage, { width: itemWidth - 14, height: (itemWidth - 14) * 1.25 }]} contentFit="cover" transition={300} />
+          <Image
+            source={{ uri: item.uri }}
+            style={[
+              styles.clothingImage,
+              {
+                width: itemWidth - responsive.scaleSpacing(14),
+                height: (itemWidth - responsive.scaleSpacing(14)) * 1.25,
+              },
+            ]}
+            contentFit="cover"
+            transition={300}
+          />
           <View style={styles.plaque}>
             <Text style={styles.plaqueText} numberOfLines={1}>{item.category}</Text>
           </View>
@@ -172,25 +191,36 @@ export default function WardrobeScreen() {
       <WardrobeBackdrop />
 
       <View style={[styles.safeAreaWrapper, { paddingTop: insets.top }]}>
-        <View style={styles.nameplateWrap}>
+        
+        {/* En-tête avec Plaque et Bouton de Langue */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
+            <Text style={styles.langText}>{i18n.language.toUpperCase()}</Text>
+          </TouchableOpacity>
+
           <View style={styles.nameplate}>
             <View style={styles.nameplateRivet} />
-            <Text style={styles.nameplateText}>MA GARDE-ROBE</Text>
+            <Text style={styles.nameplateText}>{t('wardrobe')}</Text>
             <View style={styles.nameplateRivet} />
           </View>
+          
+          <View style={{ width: 40 }} /> {/* Pour équilibrer le flex */}
         </View>
 
         <View style={styles.rodWrap}>
           <View style={styles.rod} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rodScroll}>
-            {['Tous', ...categories].map((cat) => (
-              <TouchableOpacity key={cat} style={styles.tagWrap} onPress={() => setActiveFilter(cat)}>
-                <View style={styles.tagPeg} />
-                <View style={[styles.tagChip, activeFilter === cat && styles.tagChipActive]}>
-                  <Text style={[styles.tagText, activeFilter === cat && styles.tagTextActive]}>{cat}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {['Tous', ...categories].map((cat) => {
+              const label = cat === 'Tous' ? t('all') : cat;
+              return (
+                <TouchableOpacity key={cat} style={styles.tagWrap} onPress={() => setActiveFilter(cat)}>
+                  <View style={styles.tagPeg} />
+                  <View style={[styles.tagChip, (activeFilter === cat || (cat === 'Tous' && activeFilter === t('all'))) && styles.tagChipActive]}>
+                    <Text style={[styles.tagText, (activeFilter === cat || (cat === 'Tous' && activeFilter === t('all'))) && styles.tagTextActive]}>{label}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
@@ -208,8 +238,8 @@ export default function WardrobeScreen() {
           <View style={styles.emptyContainer}>
             <View style={styles.emptyShelf} />
             <Ionicons name="shirt-outline" size={48} color={COLORS.labelSoft} />
-            <Text style={styles.emptyTitle}>L'étagère est vide</Text>
-            <Text style={styles.emptyText}>Touchez la clé pour ranger votre premier vêtement.</Text>
+            <Text style={styles.emptyTitle}>{t('emptyShelf')}</Text>
+            <Text style={styles.emptyText}>{t('emptyShelfText')}</Text>
           </View>
         )}
       </View>
@@ -220,31 +250,31 @@ export default function WardrobeScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* Modale Choix Source Photo */}
+      {/* Modale Source Photo */}
       <Modal visible={isSourceMenuVisible} animationType="fade" transparent={true}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setSourceMenuVisible(false)}>
           <View style={styles.sourceMenuContent}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Nouveau vêtement</Text>
+            <Text style={styles.sheetTitle}>{t('newClothing')}</Text>
             <TouchableOpacity style={styles.sourceBtn} onPress={takePhoto}>
               <Ionicons name="camera" size={22} color={COLORS.label} />
-              <Text style={styles.sourceBtnText}>Prendre une photo</Text>
+              <Text style={styles.sourceBtnText}>{t('takePhoto')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.sourceBtnOutline} onPress={pickImage}>
               <Ionicons name="images" size={22} color={COLORS.walnutDark} />
-              <Text style={styles.sourceBtnTextDark}>Choisir dans la galerie</Text>
+              <Text style={styles.sourceBtnTextDark}>{t('pickGallery')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* Modale Catégoriser (Create) */}
+      {/* Modale Catégoriser */}
       <Modal visible={isModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.sheetHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Ranger le vêtement</Text>
+              <Text style={styles.modalTitle}>{t('storeClothing')}</Text>
               <TouchableOpacity onPress={() => { setModalVisible(false); setTempImage(null); setIsAddingCategory(false); }}>
                 <Ionicons name="close-circle" size={26} color={COLORS.brassDark} />
               </TouchableOpacity>
@@ -256,7 +286,7 @@ export default function WardrobeScreen() {
               </View>
             )}
 
-            <Text style={styles.sectionLabel}>ÉTAGÈRE</Text>
+            <Text style={styles.sectionLabel}>{t('shelf')}</Text>
             <View style={styles.categoryContainer}>
               {categories.map((cat) => (
                 <TouchableOpacity key={cat} style={[styles.categoryBtn, selectedCategory === cat && styles.categoryBtnActive]} onPress={() => setSelectedCategory(cat)}>
@@ -274,25 +304,25 @@ export default function WardrobeScreen() {
               ) : (
                 <TouchableOpacity style={styles.addCategoryBtn} onPress={() => setIsAddingCategory(true)}>
                   <Ionicons name="add" size={16} color={COLORS.walnutDark} />
-                  <Text style={styles.categoryText}>Nouveau</Text>
+                  <Text style={styles.categoryText}>{t('newCategory')}</Text>
                 </TouchableOpacity>
               )}
             </View>
 
             <TouchableOpacity style={styles.saveBtn} onPress={saveClothingItem}>
-              <Text style={styles.saveBtnText}>Ranger dans l'armoire</Text>
+              <Text style={styles.saveBtnText}>{t('storeInWardrobe')}</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Modale Édition & Suppression (Update & Delete) */}
+      {/* Modale Édition / Suppression */}
       <Modal visible={isEditModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.sheetHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Modifier le vêtement</Text>
+              <Text style={styles.modalTitle}>{t('editClothing')}</Text>
               <TouchableOpacity onPress={() => { setEditModalVisible(false); setItemToEdit(null); }}>
                 <Ionicons name="close-circle" size={26} color={COLORS.brassDark} />
               </TouchableOpacity>
@@ -304,7 +334,7 @@ export default function WardrobeScreen() {
               </View>
             )}
 
-            <Text style={styles.sectionLabel}>CHANGER D'ÉTAGÈRE</Text>
+            <Text style={styles.sectionLabel}>{t('changeShelf')}</Text>
             <View style={styles.categoryContainer}>
               {categories.map((cat) => (
                 <TouchableOpacity key={cat} style={[styles.categoryBtn, editCategory === cat && styles.categoryBtnActive]} onPress={() => setEditCategory(cat)}>
@@ -314,11 +344,11 @@ export default function WardrobeScreen() {
             </View>
 
             <TouchableOpacity style={styles.saveBtn} onPress={saveEditedClothing}>
-              <Text style={styles.saveBtnText}>Enregistrer les modifications</Text>
+              <Text style={styles.saveBtnText}>{t('saveChanges')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: COLORS.rust, marginTop: 12, borderColor: '#7A2A20' }]} onPress={handleDeleteClothing}>
-              <Text style={styles.saveBtnText}>Supprimer le vêtement</Text>
+              <Text style={styles.saveBtnText}>{t('deleteClothing')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -331,61 +361,304 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.walnut },
   safeAreaWrapper: { flex: 1 },
   grainLine: { position: 'absolute', left: 0, right: 0, backgroundColor: COLORS.walnutDark },
-  hingeStrip: { position: 'absolute', top: 100, width: 14, backgroundColor: 'rgba(0,0,0,0.25)' },
-  hingeDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.brass, marginLeft: 2, borderWidth: 1, borderColor: COLORS.brassDark },
-  nameplateWrap: { alignItems: 'center', marginTop: 10, marginBottom: 6 },
-  nameplate: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.walnutDark, paddingHorizontal: 22, paddingVertical: 8, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.brass, gap: 10 },
-  nameplateText: { color: COLORS.label, fontWeight: '700', fontSize: 15, letterSpacing: 3, fontFamily: 'serif' },
-  nameplateRivet: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.brass },
-  rodWrap: { paddingTop: 14, paddingBottom: 14, paddingHorizontal: 15 },
-  rod: { position: 'absolute', top: 4, left: 15, right: 15, height: 3, backgroundColor: COLORS.brass, borderRadius: 2, opacity: 0.9 },
-  rodScroll: { paddingTop: 4 },
-  tagWrap: { alignItems: 'center', marginRight: 14 },
-  tagPeg: { width: 4, height: 10, backgroundColor: COLORS.brassDark },
-  tagChip: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 3, backgroundColor: 'rgba(243,231,211,0.12)', borderWidth: 1, borderColor: 'rgba(201,162,39,0.5)' },
+  hingeStrip: {
+    position: 'absolute',
+    top: responsive.isTablet ? 120 : 100,
+    width: responsive.isTablet ? 18 : 14,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  hingeDot: {
+    width: responsive.isTablet ? 12 : 10,
+    height: responsive.isTablet ? 12 : 10,
+    borderRadius: responsive.isTablet ? 6 : 5,
+    backgroundColor: COLORS.brass,
+    marginLeft: responsive.isTablet ? 3 : 2,
+    borderWidth: 1,
+    borderColor: COLORS.brassDark,
+  },
+
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: responsive.scaleSpacing(15),
+    marginTop: responsive.scaleSpacing(10),
+    marginBottom: responsive.scaleSpacing(6),
+  },
+  langBtn: {
+    backgroundColor: COLORS.walnutDark,
+    paddingHorizontal: responsive.scaleSpacing(10),
+    paddingVertical: responsive.scaleSpacing(6),
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.brass,
+  },
+  langText: { color: COLORS.brass, fontWeight: '700', fontSize: responsive.scaleFont(12) },
+
+  nameplate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.walnutDark,
+    paddingHorizontal: responsive.scaleSpacing(18),
+    paddingVertical: responsive.scaleSpacing(8),
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.brass,
+    gap: responsive.scaleSpacing(10),
+  },
+  nameplateText: {
+    color: COLORS.label,
+    fontWeight: '700',
+    fontSize: responsive.scaleFont(14),
+    letterSpacing: 2,
+    fontFamily: 'serif',
+  },
+  nameplateRivet: {
+    width: responsive.scaleSpacing(6),
+    height: responsive.scaleSpacing(6),
+    borderRadius: responsive.scaleSpacing(3),
+    backgroundColor: COLORS.brass,
+  },
+
+  rodWrap: {
+    paddingTop: responsive.scaleSpacing(14),
+    paddingBottom: responsive.scaleSpacing(14),
+    paddingHorizontal: responsive.scaleSpacing(15),
+  },
+  rod: {
+    position: 'absolute',
+    top: responsive.scaleSpacing(4),
+    left: responsive.scaleSpacing(15),
+    right: responsive.scaleSpacing(15),
+    height: responsive.scaleSpacing(3),
+    backgroundColor: COLORS.brass,
+    borderRadius: 2,
+    opacity: 0.9,
+  },
+  rodScroll: { paddingTop: responsive.scaleSpacing(4) },
+  tagWrap: { alignItems: 'center', marginRight: responsive.scaleSpacing(14) },
+  tagPeg: { width: responsive.scaleSpacing(4), height: responsive.scaleSpacing(10), backgroundColor: COLORS.brassDark },
+  tagChip: {
+    paddingHorizontal: responsive.scaleSpacing(16),
+    paddingVertical: responsive.scaleSpacing(7),
+    borderRadius: 3,
+    backgroundColor: 'rgba(243,231,211,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(201,162,39,0.5)',
+  },
   tagChipActive: { backgroundColor: COLORS.label, borderColor: COLORS.label },
-  tagText: { color: COLORS.labelSoft, fontWeight: '600', fontSize: 13 },
+  tagText: { color: COLORS.labelSoft, fontWeight: '600', fontSize: responsive.scaleFont(13) },
   tagTextActive: { color: COLORS.walnutDark },
-  listContainer: { paddingHorizontal: 15, paddingBottom: 110 },
-  shelfPlank: { height: 14, marginVertical: 6, borderTopWidth: 2, borderTopColor: 'rgba(0,0,0,0.35)', borderBottomWidth: 1, borderBottomColor: 'rgba(201,162,39,0.25)' },
-  card: { flex: 1, margin: 7, alignItems: 'center' },
-  hookWrap: { alignItems: 'center', height: 16, marginBottom: 2 },
-  hookLine: { width: 2, height: 10, backgroundColor: COLORS.brassDark },
-  hookCircle: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: COLORS.brass, marginTop: -3 },
-  shelfItemFrame: { backgroundColor: COLORS.label, padding: 7, paddingBottom: 22, borderRadius: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.45, shadowRadius: 6, elevation: 8 },
+  listContainer: { paddingHorizontal: responsive.scaleSpacing(15), paddingBottom: responsive.scaleSpacing(110) },
+  shelfPlank: {
+    height: responsive.scaleSpacing(14),
+    marginVertical: responsive.scaleSpacing(6),
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(0,0,0,0.35)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(201,162,39,0.25)',
+  },
+  card: { flex: 1, margin: responsive.scaleSpacing(7), alignItems: 'center' },
+  hookWrap: { alignItems: 'center', height: responsive.scaleSpacing(16), marginBottom: responsive.scaleSpacing(2) },
+  hookLine: { width: responsive.scaleSpacing(2), height: responsive.scaleSpacing(10), backgroundColor: COLORS.brassDark },
+  hookCircle: {
+    width: responsive.scaleSpacing(10),
+    height: responsive.scaleSpacing(10),
+    borderRadius: responsive.scaleSpacing(5),
+    borderWidth: 2,
+    borderColor: COLORS.brass,
+    marginTop: -3,
+  },
+  shelfItemFrame: {
+    backgroundColor: COLORS.label,
+    padding: responsive.scaleSpacing(7),
+    paddingBottom: responsive.scaleSpacing(22),
+    borderRadius: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
+    elevation: 8,
+  },
   clothingImage: { borderRadius: 1 },
-  plaque: { position: 'absolute', bottom: 6, alignSelf: 'center', backgroundColor: COLORS.walnutDark, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 2, maxWidth: '85%' },
-  plaqueText: { fontSize: 10, color: COLORS.brass, fontWeight: '600', letterSpacing: 1 },
-  dirtyBtn: { position: 'absolute', top: -6, right: -6, backgroundColor: COLORS.rust, padding: 7, borderRadius: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, elevation: 4, borderWidth: 1.5, borderColor: COLORS.walnutDark },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
-  emptyShelf: { width: 140, height: 3, backgroundColor: 'rgba(201,162,39,0.35)', marginBottom: 18, borderRadius: 2 },
-  emptyTitle: { fontSize: 18, color: COLORS.label, fontWeight: '700', marginTop: 12, fontFamily: 'serif' },
-  emptyText: { fontSize: 13, color: COLORS.labelSoft, marginTop: 6, textAlign: 'center' },
-  fab: { position: 'absolute', bottom: 30, right: 30, width: 66, height: 66, borderRadius: 33, backgroundColor: COLORS.walnutDark, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.5, shadowRadius: 8, elevation: 10, borderWidth: 2, borderColor: COLORS.brass },
-  fabInner: { width: 46, height: 46, borderRadius: 23, backgroundColor: COLORS.brass, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.brassDark },
+  plaque: {
+    position: 'absolute',
+    bottom: responsive.scaleSpacing(6),
+    alignSelf: 'center',
+    backgroundColor: COLORS.walnutDark,
+    paddingHorizontal: responsive.scaleSpacing(10),
+    paddingVertical: responsive.scaleSpacing(2),
+    borderRadius: 2,
+    maxWidth: '85%',
+  },
+  plaqueText: { fontSize: responsive.scaleFont(10), color: COLORS.brass, fontWeight: '600', letterSpacing: 1 },
+  dirtyBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: COLORS.rust,
+    padding: responsive.scaleSpacing(7),
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.walnutDark,
+  },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: responsive.scaleSpacing(40) },
+  emptyShelf: {
+    width: responsive.scaleSpacing(140),
+    height: responsive.scaleSpacing(3),
+    backgroundColor: 'rgba(201,162,39,0.35)',
+    marginBottom: responsive.scaleSpacing(18),
+    borderRadius: 2,
+  },
+  emptyTitle: { fontSize: responsive.scaleFont(18), color: COLORS.label, fontWeight: '700', marginTop: responsive.scaleSpacing(12), fontFamily: 'serif' },
+  emptyText: { fontSize: responsive.scaleFont(13), color: COLORS.labelSoft, marginTop: responsive.scaleSpacing(6), textAlign: 'center' },
+  fab: {
+    position: 'absolute',
+    bottom: responsive.scaleSpacing(30),
+    right: responsive.scaleSpacing(30),
+    width: responsive.scaleSpacing(66),
+    height: responsive.scaleSpacing(66),
+    borderRadius: responsive.scaleSpacing(33),
+    backgroundColor: COLORS.walnutDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 10,
+    borderWidth: 2,
+    borderColor: COLORS.brass,
+  },
+  fabInner: {
+    width: responsive.scaleSpacing(46),
+    height: responsive.scaleSpacing(46),
+    borderRadius: responsive.scaleSpacing(23),
+    backgroundColor: COLORS.brass,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.brassDark,
+  },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: COLORS.label, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 25, paddingBottom: 50 },
-  sourceMenuContent: { backgroundColor: COLORS.label, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 25, paddingBottom: 50 },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(62,36,21,0.25)', alignSelf: 'center', marginBottom: 16 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: COLORS.walnut, textAlign: 'center', marginBottom: 18, fontFamily: 'serif' },
-  sourceBtn: { flexDirection: 'row', backgroundColor: COLORS.walnutDark, paddingVertical: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 1, borderColor: COLORS.brass, gap: 10 },
-  sourceBtnText: { color: COLORS.label, fontSize: 15, fontWeight: '700' },
-  sourceBtnOutline: { flexDirection: 'row', backgroundColor: 'transparent', paddingVertical: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.walnutDark, gap: 10 },
-  sourceBtnTextDark: { color: COLORS.walnutDark, fontSize: 15, fontWeight: '700' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: COLORS.walnut, fontFamily: 'serif' },
-  modalImageFrame: { alignSelf: 'center', marginBottom: 18, padding: 6, backgroundColor: '#FFF', borderRadius: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, elevation: 5 },
-  modalImage: { width: 140, aspectRatio: 0.8, borderRadius: 2 },
-  sectionLabel: { fontSize: 11, color: COLORS.brassDark, fontWeight: '700', letterSpacing: 2, marginBottom: 10, textAlign: 'center' },
-  categoryContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginBottom: 28 },
-  categoryBtn: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 3, borderWidth: 1, borderColor: COLORS.oak, backgroundColor: '#FFF' },
+  modalContent: {
+    backgroundColor: COLORS.label,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: responsive.scaleSpacing(25),
+    paddingBottom: responsive.scaleSpacing(50),
+  },
+  sourceMenuContent: {
+    backgroundColor: COLORS.label,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: responsive.scaleSpacing(25),
+    paddingBottom: responsive.scaleSpacing(50),
+  },
+  sheetHandle: {
+    width: responsive.scaleSpacing(40),
+    height: responsive.scaleSpacing(4),
+    borderRadius: 2,
+    backgroundColor: 'rgba(62,36,21,0.25)',
+    alignSelf: 'center',
+    marginBottom: responsive.scaleSpacing(16),
+  },
+  sheetTitle: { fontSize: responsive.scaleFont(18), fontWeight: '700', color: COLORS.walnut, textAlign: 'center', marginBottom: responsive.scaleSpacing(18), fontFamily: 'serif' },
+  sourceBtn: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.walnutDark,
+    paddingVertical: responsive.scaleSpacing(15),
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: responsive.scaleSpacing(12),
+    borderWidth: 1,
+    borderColor: COLORS.brass,
+    gap: responsive.scaleSpacing(10),
+  },
+  sourceBtnText: { color: COLORS.label, fontSize: responsive.scaleFont(15), fontWeight: '700' },
+  sourceBtnOutline: {
+    flexDirection: 'row',
+    backgroundColor: 'transparent',
+    paddingVertical: responsive.scaleSpacing(15),
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.walnutDark,
+    gap: responsive.scaleSpacing(10),
+  },
+  sourceBtnTextDark: { color: COLORS.walnutDark, fontSize: responsive.scaleFont(15), fontWeight: '700' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: responsive.scaleSpacing(16) },
+  modalTitle: { fontSize: responsive.scaleFont(20), fontWeight: '700', color: COLORS.walnut, fontFamily: 'serif' },
+  modalImageFrame: {
+    alignSelf: 'center',
+    marginBottom: responsive.scaleSpacing(18),
+    padding: responsive.scaleSpacing(6),
+    backgroundColor: '#FFF',
+    borderRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    elevation: 5,
+  },
+  modalImage: { width: responsive.scaleSpacing(140), aspectRatio: 0.8, borderRadius: 2 },
+  sectionLabel: { fontSize: responsive.scaleFont(11), color: COLORS.brassDark, fontWeight: '700', letterSpacing: 2, marginBottom: responsive.scaleSpacing(10), textAlign: 'center' },
+  categoryContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: responsive.scaleSpacing(10), marginBottom: responsive.scaleSpacing(28) },
+  categoryBtn: {
+    paddingHorizontal: responsive.scaleSpacing(15),
+    paddingVertical: responsive.scaleSpacing(10),
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: COLORS.oak,
+    backgroundColor: '#FFF',
+  },
   categoryBtnActive: { backgroundColor: COLORS.walnutDark, borderColor: COLORS.brass },
   categoryText: { color: COLORS.walnut, fontWeight: '600' },
   categoryTextActive: { color: COLORS.label },
-  addCategoryBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 3, borderWidth: 1, borderColor: COLORS.oak, backgroundColor: 'rgba(107,66,38,0.08)', borderStyle: 'dashed', gap: 4 },
-  newCategoryInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 3, borderWidth: 1, borderColor: COLORS.walnutDark, paddingLeft: 12, paddingRight: 4, height: 40 },
+  addCategoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: responsive.scaleSpacing(15),
+    paddingVertical: responsive.scaleSpacing(10),
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: COLORS.oak,
+    backgroundColor: 'rgba(107,66,38,0.08)',
+    borderStyle: 'dashed',
+    gap: responsive.scaleSpacing(4),
+  },
+  newCategoryInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: COLORS.walnutDark,
+    paddingLeft: responsive.scaleSpacing(12),
+    paddingRight: responsive.scaleSpacing(4),
+    height: responsive.scaleSpacing(40),
+  },
   newCategoryInput: { flex: 1, minWidth: 80, color: COLORS.walnut },
-  newCategoryCheck: { backgroundColor: COLORS.brass, borderRadius: 15, width: 26, height: 26, justifyContent: 'center', alignItems: 'center' },
-  saveBtn: { backgroundColor: COLORS.walnutDark, paddingVertical: 15, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: COLORS.brass },
-  saveBtnText: { color: COLORS.label, fontSize: 15, fontWeight: '700', letterSpacing: 1 },
+  newCategoryCheck: {
+    backgroundColor: COLORS.brass,
+    borderRadius: responsive.scaleSpacing(15),
+    width: responsive.scaleSpacing(26),
+    height: responsive.scaleSpacing(26),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveBtn: {
+    backgroundColor: COLORS.walnutDark,
+    paddingVertical: responsive.scaleSpacing(15),
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.brass,
+  },
+  saveBtnText: { color: COLORS.label, fontSize: responsive.scaleFont(15), fontWeight: '700', letterSpacing: 1 },
 });
